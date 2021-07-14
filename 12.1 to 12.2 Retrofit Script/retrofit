@@ -1,0 +1,233 @@
+#!/bin/ksh
+
+REL="1.00"
+PROGNAME=$(basename "$0")
+CURR_DATE=$(date "+%Y%m%d")
+CURR_DIR=$(pwd)
+WORKDIR="${CURR_DIR}"
+
+
+DB="${WORKDIR}/ERP/db"
+SQL="${WORKDIR}/ERP/sql"
+FORMS="${WORKDIR}/ERP/forms/US"
+REPORTS="${WORKDIR}/ERP/reports/US"
+WF="${WORKDIR}/ERP/workflow"
+AOL="${WORKDIR}/ERP/aol"
+BIN="${WORKDIR}/ERP/bin"
+LOG="${WORKDIR}/ERP/log"
+OAF="${WORKDIR}/ERP/oaf"
+BI="${WORKDIR}/ERP/bi"
+
+log()
+{
+    echo `date +"%D %X : $1"`
+	date +"%D %X : *** Log : $1 *** ">>"$WORKDIR"/AUTO_RETROFIT_LOG.txt
+}
+
+
+replace()
+{
+	while IFS=: read -r FILE_NAME LINE_NO PAT
+	do
+		TEMP=$(echo "$PAT" | cut -d"." -f2)
+		NEW="APPS."${TEMP}"  /* @@ 12.2.X */"
+		sed -i -e "$LINE_NO s/$PAT/$NEW/g" $FILE_NAME
+	done<"$1"
+}
+
+
+
+dbLst()
+{
+
+sqlplus -s $APPID/$APPWD <<EOF
+set serveroutput on size 1000000;
+set pages      0;
+set echo       off 
+set feed       off;
+set feedback   off;
+set heading    off;
+set linesize   1000;
+SELECT OWNER||'.'||OBJECT_NAME 
+FROM DBA_OBJECTS 
+WHERE OBJECT_TYPE IN ('TABLE','MATERIALIZED VIEW') 
+AND (OWNER IN
+        (SELECT ORACLE_USERNAME 
+          FROM FND_ORACLE_USERID 
+          WHERE 1 = 1 AND ORACLE_USERNAME !='APPS'));
+exit;
+EOF
+}
+
+
+clear
+echo "***********************************************"
+echo "            EBS Code Extract Script"
+echo "                  Release ""$REL"
+echo "***********************************************"
+echo " "
+echo "Pre-requisites"
+echo "--------------"
+echo "1. This script should be run from new temporary staging directory (e.g. /RETROFIT), users can use any name."
+echo "   this temporary directory should be outside of APPL_TOP  directory tree."
+echo "2. This script should be executed on APP TIER by DBA from ***applmgr*** OS user"
+echo "3. This script will need SQLPLUS access and read access all APPL_TOP folders and sub-folders."
+echo "4. Initilize the enviornmnet before executing it"
+
+
+
+echo ""
+echo "Press any key to continue and Q to exit "
+read res
+ if [ "$res" = "q" -o "$res" = "Q" ]
+ then
+   exit 1
+ fi
+ 
+echo -n  "Enter APPS Userid (apps): "
+read APPID
+stty -echo
+echo  "Enter APPS Password: "
+read APPWD
+stty echo
+
+
+
+
+echo  " "
+echo  "Executing the scripts"
+touch $WORKDIR"/AUTO_RETROFIT_LOG.txt"
+
+if [ "$APPID" = '' ] || [ "$APPWD" = '' ] 
+then
+ usage
+ exit 1;
+fi
+function login
+{
+    CONN="`sqlplus -s $APPID/$APPWD <<END1
+                 set      heading    off;
+                 SELECT 'CONNECTED' FROM DUAL;
+                 exit;
+END1`"
+}
+
+login
+
+if [ $CONN == "CONNECTED" ];
+  then
+    log "Username Password is correct"
+	
+else
+    log "Username Password is incorrect"
+    log "Rerun the script with correct username and password"
+    exit 1;
+fi
+
+
+log "Extracting Database Objects (db.lst)"
+dbLst 1>${WORKDIR}/db.lst
+if [ -f ${WORKDIR}/db.lst ]; then
+log "Database objects list file generated"
+log "DB Objects Count:: "`cat ${WORKDIR}/db.lst | wc -l`
+else
+log "Database objects list file Not Found"
+fi
+
+echo "***********************************************"
+echo "            DB Objects Retrofit"
+echo "***********************************************"
+
+
+#Check DB Folder for any In Incedents and Replace them
+log "Checking DB Objects for Schema References"
+grep -nHiof db.lst "${DB}"/*.* /dev/null>>DB_GREP_OUT.out
+
+if [ -f ${WORKDIR}/DB_GREP_OUT.out ]; then
+log "GREP Output for DB Objects Generated"
+log "GREP Output File record count :: "`cat ${WORKDIR}/DB_GREP_OUT.out | wc -l`
+replace ${WORKDIR}/DB_GREP_OUT.out
+fi
+
+echo "***********************************************"
+echo "            AOL Objects Retrofit"
+echo "***********************************************"
+
+#Check DB Folder for any In Incedents and Replace them
+log "Checking AOL Objects for Schema References"
+grep -nHiof db.lst "${AOL}"/*.ldt /dev/null>>AOL_GREP_OUT.out
+
+if [ -f ${WORKDIR}/AOL_GREP_OUT.out ]; then
+log "GREP Output for AOL Objects Generated"
+log "GREP Output File record count :: "`cat ${WORKDIR}/AOL_GREP_OUT.out | wc -l`
+replace ${WORKDIR}/AOL_GREP_OUT.out
+fi
+
+echo "***********************************************"
+echo "            SQL* Plus Objects Retrofit"
+echo "***********************************************"
+
+#Check DB Folder for any In Incedents and Replace them
+log "Checking SQL Report Objects for Schema References"
+grep -nHiof db.lst "${SQL}"/*.* /dev/null>>SQL_GREP_OUT.out
+
+
+if [ -f ${WORKDIR}/SQL_GREP_OUT.out ]; then
+log "GREP Output for AOL Objects Generated"
+log "GREP Output File record count :: "`cat ${WORKDIR}/SQL_GREP_OUT.out | wc -l`
+replace ${WORKDIR}/SQL_GREP_OUT.out
+fi
+
+
+echo "***********************************************"
+echo "            BIN Objects Retrofit"
+echo "***********************************************"
+
+#Check DB Folder for any In Incedents and Replace them
+log "Checking BIN Report Objects for Schema References"
+grep -nHiof db.lst "${BIN}"/*.* /dev/null>>BIN_GREP_OUT.out
+
+
+if [ -f ${WORKDIR}/BIN_GREP_OUT.out ]; then
+log "GREP Output for AOL Objects Generated"
+log "GREP Output File record count :: "`cat ${WORKDIR}/BIN_GREP_OUT.out | wc -l`
+replace ${WORKDIR}/BIN_GREP_OUT.out
+fi
+
+
+echo "***********************************************"
+echo "            BI Objects Retrofit"
+echo "***********************************************"
+
+#Check DB Folder for any In Incedents and Replace them
+log "Checking BI Report Objects for Schema References"
+grep -nHiof db.lst "${BI}"/*.* /dev/null>>BI_GREP_OUT.out
+#grep -nHiof db.lst "${BI}"/*.*  /dev/null>>BI_GREP_OUT.out
+
+if [ -f ${WORKDIR}/BI_GREP_OUT.out ]; then
+log "GREP Output for AOL Objects Generated"
+log "GREP Output File record count :: "`cat ${WORKDIR}/BI_GREP_OUT.out | wc -l`
+replace ${WORKDIR}/BI_GREP_OUT.out
+fi
+
+echo "***********************************************"
+echo "            RDF Objects Retrofit"
+echo "***********************************************"
+
+#Check DB Folder for any In Incedents and Replace them
+log "Checking Report Objects for Schema References"
+grep -nHiof db.lst "${REPORTS}"/*.* | awk '{print $3}'>>RDF_LST.out
+
+while IFS=: read -r FILE_NAME
+do
+log "Retrofit Started for file : "${FILE_NAME}
+basefile="${REPORTS}"/"`basename $FILE_NAME .rdf`"
+log "basefile Value  : "${basefile}
+rwconverter.sh stype=rdffile source="$basefile".rdf dtype=rexfile dest="$basefile".rex batch=yes OVERWRITE=yes 2>>RDF_AUTO_REPLACE_LOG.txt
+cat /dev/null>RDF_GREP_OUT.out
+grep -nHiof db.lst "$basefile".rex /dev/null>>RDF_GREP_OUT.out
+log "GREP Output for RDF Object Generated for file "${basefile}.rdf
+log "GREP Output File record count for file name:: "`cat ${WORKDIR}/RDF_GREP_OUT.out | wc -l`
+replace ${WORKDIR}/RDF_GREP_OUT.out
+rwconverter.sh stype=rexfile source="$basefile".rex dtype=rdffile dest="$basefile".rdf batch=yes OVERWRITE=yes 2>>RDF_AUTO_REPLACE_LOG.txt
+done<RDF_LST.out
