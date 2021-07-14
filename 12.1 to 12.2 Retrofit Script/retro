@@ -1,4 +1,3 @@
-
 #!/bin/ksh
 
 REL="1.00"
@@ -8,21 +7,21 @@ CURR_DIR=$(pwd)
 WORKDIR="${CURR_DIR}"
 
 
-DB="${WORKDIR}/UGN_ERP/db"
-SQL="${WORKDIR}/UGN_ERP/sql"
-FORMS="${WORKDIR}/UGN_ERP/forms/US"
-REPORTS="${WORKDIR}/UGN_ERP/reports/US"
-WF="${WORKDIR}/UGN_ERP/workflow"
-AOL="${WORKDIR}/UGN_ERP/aol"
-BIN="${WORKDIR}/UGN_ERP/bin"
-LOG="${WORKDIR}/UGN_ERP/log"
-OAF="${WORKDIR}/UGN_ERP/oaf"
-BI="${WORKDIR}/UGN_ERP/bi"
+DB="${WORKDIR}/ERP/db"
+SQL="${WORKDIR}/ERP/sql"
+FORMS="${WORKDIR}/ERP/forms/US"
+REPORTS="${WORKDIR}/ERP/reports/US"
+WF="${WORKDIR}/ERP/workflow"
+AOL="${WORKDIR}/ERP/aol"
+BIN="${WORKDIR}/ERP/bin"
+LOG="${WORKDIR}/ERP/log"
+OAF="${WORKDIR}/ERP/oaf"
+BI="${WORKDIR}/ERP/bi"
 
 log()
 {
     echo `date +"%D %X : $1"`
-	date +"%D %X : *** Log : $1 *** ">>"$WORKDIR"/UGN_AUTO_RETROFIT_LOG.txt
+	date +"%D %X : *** Log : $1 *** ">>"$WORKDIR"/AUTO_RETROFIT_LOG.txt
 }
 
 
@@ -55,8 +54,7 @@ WHERE OBJECT_TYPE IN ('TABLE','MATERIALIZED VIEW')
 AND (OWNER IN
         (SELECT ORACLE_USERNAME 
           FROM FND_ORACLE_USERID 
-          WHERE 1 = 1 AND ORACLE_USERNAME !='APPS')
-    or OWNER ='XXUGN');
+          WHERE 1 = 1 AND ORACLE_USERNAME !='APPS'));
 exit;
 EOF
 }
@@ -64,7 +62,7 @@ EOF
 
 clear
 echo "***********************************************"
-echo "            UGN EBS Code Extract Script"
+echo "            EBS Code Extract Script"
 echo "                  Release ""$REL"
 echo "***********************************************"
 echo " "
@@ -98,7 +96,7 @@ stty echo
 
 echo  " "
 echo  "Executing the scripts"
-touch $WORKDIR"/UGN_AUTO_RETROFIT_LOG.txt"
+touch $WORKDIR"/AUTO_RETROFIT_LOG.txt"
 
 if [ "$APPID" = '' ] || [ "$APPWD" = '' ] 
 then
